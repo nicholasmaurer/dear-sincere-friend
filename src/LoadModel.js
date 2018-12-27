@@ -3,10 +3,9 @@ import GLTFLoader from 'three-gltf-loader';
 import RendererStats from '@xailabs/three-renderer-stats';
 import Stats from 'stats-js';
 
-const wall_left = require('./textures/wall_left.jpg');
-const wall_right = require('./textures/wall_right.jpg');
-const wall_end = require('./textures/wall_end.jpg');
-const floor = require('./textures/floor_map.jpg');
+const testImg = require('./textures/test.png');
+const centerImg = require('./textures/center.jpg');
+const sideImg = require('./textures/side.jpg');
 const cubeImgs = [
     require('./textures/cubemap/px.png'),
     require('./textures/cubemap/nx.png'),
@@ -22,48 +21,39 @@ export default class LoadModel {
 
         const cubeTex = new THREE.CubeTextureLoader().load(cubeImgs);
         cubeTex.format = THREE.RGBFormat;
-        scene.background = cubeTex;
+        scene.background = 0x000000;
         // Load textures
         var textureLoader = new THREE.TextureLoader();
-        var floorTex = textureLoader.load(floor);
-        floorTex.flipY = false;
-        floorTex.encoding = THREE.sRGBEncoding;
-        var wallEndTex = textureLoader.load(wall_end);
-        wallEndTex.flipY = false;
-        wallEndTex.encoding = THREE.sRGBEncoding;
-        var wallLeftTex = textureLoader.load(wall_left);
-        wallLeftTex.flipY = false;
-        wallLeftTex.encoding = THREE.sRGBEncoding;
-        var wallRightTex = textureLoader.load(wall_right);
-        wallRightTex.flipY = false;
-        wallRightTex.encoding = THREE.sRGBEncoding;
-        var floorMat = new THREE.MeshBasicMaterial({map: floorTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})        
-        var wallEndMat = new THREE.MeshBasicMaterial({map: wallEndTex});
-        var wallLeftMat = new THREE.MeshBasicMaterial({map: wallLeftTex});
-        var wallRightMat = new THREE.MeshBasicMaterial({map: wallRightTex});    
+        var testTex = textureLoader.load(testImg)
+        var testMat = new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true}); 
+        var centerTex = textureLoader.load(centerImg);
+        centerTex.flipY = false;
+        centerTex.encoding = THREE.sRGBEncoding;
+        var sideTex = textureLoader.load(sideImg);
+        sideTex.encoding = THREE.sRGBEncoding;
+        sideTex.flipY = false;
+        var centerMat = new THREE.MeshBasicMaterial({map: centerTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})          
+        var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
+
+        this.flipObj = new THREE.Object3D();
         // Load a glTF resource
         var loader = new GLTFLoader();
         loader.load(
             // resource URL
             `./assets/duveen_gallery.glb`,
             // called when the resource is loaded
-                function ( gltf ) {
+                ( gltf ) => {
+                    gltf.scene.add(this.flipObj);
                     gltf.scene.children.forEach(child => {
                         console.log(child.name)
+                        child.material = testMat;
                         switch (child.name) {
-                            case 'wall_left':
-                                child.material = wallLeftMat;
+                            case 'side':
+                                child.material = centerMat;
+                                this.flipObj.add(child);
                                 break;
-                            case 'wall_right':
-                                child.material = wallRightMat;
-                                break;
-                            case 'wall_end':
-                                child.material = wallEndMat;
-                                break;
-                            case 'floor':
-                                child.material = floorMat;
-                                break;
-                            default:
+                            case 'center':
+                                child.material = sideMat;
                                 break;
                         }
                     });

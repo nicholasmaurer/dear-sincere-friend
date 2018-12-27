@@ -3,6 +3,7 @@ import WebVRPolyfill from "webvr-polyfill";
 import VRControls from "three-vrcontrols-module";
 import VREffect from "three-vreffect-module";
 import LoadModel from "./LoadModel";
+import Player from "./Player";
 import RendererStats from "@xailabs/three-renderer-stats";
 import Stats from "stats-js";
 var OrbitControls = require("three-orbit-controls")(THREE);
@@ -73,7 +74,10 @@ export default class WebVRScene {
     var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
     var material = new THREE.MeshNormalMaterial();
     var cube = new THREE.Mesh(geometry, material);
+    
     var model = new LoadModel(scene);
+    var player = new Player(camera)
+
     // Position cube
     cube.position.z = -5;
     // Add cube mesh to your three.js scene
@@ -134,6 +138,14 @@ export default class WebVRScene {
       controls.update();
       // Render the scene.
       effect.render(scene, camera);
+      player.update();
+      if(model.flipObj){
+        if(player.facingForward){
+          model.flipObj.rotation.set(0,0,0);
+        }else{
+            model.flipObj.rotation.set(0,Math.PI,0);
+        }
+      }
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {
