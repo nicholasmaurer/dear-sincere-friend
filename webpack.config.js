@@ -7,8 +7,8 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 module.exports = {
   mode: 'production',
   entry: {
-    app: './src/index.js',
-    print: './src/print.js'
+    landing: './src/landing.js',
+    app: './src/index.js'
   },
   devtool: 'inline-source-map',
   devServer: {
