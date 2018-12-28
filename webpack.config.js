@@ -5,7 +5,7 @@ const ASSET_PATH = process.env.ASSET_PATH || '/';
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
-  mode: 'development',
+  mode: 'production',
   entry: {
     app: './src/index.js',
     print: './src/print.js'
@@ -17,7 +17,10 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(['dist']),
     new HtmlWebpackPlugin({
-      title: 'Dear Sincere Friend'
+      title: 'Dear Sincere Friend',
+      hash: true,
+      template: './src/index.html',
+      filename: './index.html' //relative to root of the application
     }),
     new CopyWebpackPlugin([{ from: 'src/assets', to: './assets'}], { copyUnmodified: true })
   ],
@@ -25,7 +28,6 @@ module.exports = {
     filename: '[name].bundle.js',
     path: path.resolve(__dirname, "dist"),
     publicPath: ASSET_PATH
-
   },
   module: {
     rules: [

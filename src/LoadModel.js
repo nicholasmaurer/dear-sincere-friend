@@ -41,7 +41,7 @@ export default class LoadModel {
         loader.load(
             // resource URL
             `./assets/duveen_gallery.glb`,
-            // called when the resource is loaded
+            // called when the resource is loaded   
                 ( gltf ) => {
                     gltf.scene.add(this.flipObj);
                     gltf.scene.children.forEach(child => {

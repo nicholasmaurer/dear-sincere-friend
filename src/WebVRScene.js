@@ -129,7 +129,9 @@ export default class WebVRScene {
     var lastRender = 0;
     function animate(timestamp) {
     
+      if(process.env.NODE_ENV == 'development'){
         stats.begin();
+      }
       var delta = Math.min(timestamp - lastRender, 500);
       lastRender = timestamp;
       // Apply rotation to cube mesh
@@ -153,10 +155,11 @@ export default class WebVRScene {
         } else {
             requestAnimationFrame(animate);
         }
-        rendererStats.update(renderer);
-        stats.end();
-
-    }
+        if (process.env.NODE_ENV === "development") {
+          rendererStats.update(renderer);
+          stats.end();
+        }
+      }
     function onResize() {
       // The delay ensures the browser has a chance to layout
       // the page and update the clientWidth/clientHeight.
@@ -210,19 +213,22 @@ export default class WebVRScene {
       } else if (el.msRequestFullscreen) {
         el.msRequestFullscreen();
       }
-    }   
-    // RenderStats
-    const rendererStats = new RendererStats();
-    rendererStats.domElement.style.position	= 'absolute'
-    rendererStats.domElement.style.left	= '0px'
-    rendererStats.domElement.style.bottom	= '0px'
-    document.body.appendChild( rendererStats.domElement )
-    // Stats
-    const stats = new Stats();
-    stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-    document.body.appendChild( stats.dom );
-    // Three JS  Inspector
-    window.scene = scene;
-    window.THREE = THREE;
+    }
+    
+    if (process.env.NODE_ENV == 'development') {
+      // RenderStats
+      var rendererStats = new RendererStats();
+      rendererStats.domElement.style.position	= 'absolute'
+      rendererStats.domElement.style.left	= '0px'
+      rendererStats.domElement.style.bottom	= '0px'
+      document.body.appendChild( rendererStats.domElement )
+      // Stats
+      var stats = new Stats();
+      stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+      document.body.appendChild( stats.dom );
+      // Three JS  Inspector
+      window.scene = scene;
+      window.THREE = THREE;
+    }
   }
 }

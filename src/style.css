@@ -12,15 +12,14 @@ canvas {
   height: 100%;
 }
 #buttons {
-  margin: 20px;
+  margin: 10%;
   position: fixed;
-  top: 10%;
-  left: 100px;
   z-index: 1;
-  background: white;
+  background: transparent;
   color: #000000;
 }
 h1{
+  font-size: 40pt;
   margin: 10px;
   color: #000000;
 }
