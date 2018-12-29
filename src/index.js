@@ -1,8 +1,17 @@
-import WebVRScene from "./WebVRScene";
-
 console.log("Hello world, this is me, life shoudle be, fun for everyone");
 
-let example = new WebVRScene();
+function getComponent(){
+  return import(/* webpackChunkName: "webVrScene" */ './WebVRScene').then(({default: WebVRScene}) => {
+    
+    let example = new WebVRScene();
+    
+  }).catch(error => 'An error occured while loading the component');
+}
+const backgroundImage = require('./textures/cubemap/pz.png');
+var body = document.querySelector("Body");
+body.setAttribute('background', backgroundImage);
+
+getComponent();
 
 //I think this disables some touch events
 document.addEventListener('touchmove', function(e) {

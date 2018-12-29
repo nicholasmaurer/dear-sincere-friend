@@ -7,7 +7,6 @@ const CopyWebpackPlugin = require('copy-webpack-plugin')
 module.exports = {
   mode: 'production',
   entry: {
-    landing: './src/landing.js',
     app: './src/index.js'
   },
   devtool: 'inline-source-map',
@@ -26,6 +25,7 @@ module.exports = {
   ],
   output: {
     filename: '[name].bundle.js',
+    chunkFilename: '[name].bundle.js',
     path: path.resolve(__dirname, "dist"),
     publicPath: ASSET_PATH
   },
