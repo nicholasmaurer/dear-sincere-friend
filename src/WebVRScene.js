@@ -9,7 +9,6 @@ import Stats from "stats-js";
 var OrbitControls = require("three-orbit-controls")(THREE);
 
 export default class WebVRScene {
-  
   constructor() {
     // Get config from URL
     var config = (function() {
@@ -44,18 +43,19 @@ export default class WebVRScene {
     );
     var renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(Math.floor(window.devicePixelRatio));
+
     // Append the canvas element created by the renderer to document body element.
     var canvas = renderer.domElement;
     document.body.appendChild(canvas);
-    // Create a three.js scene.
+
     var scene = new THREE.Scene();
-    // Create a three.js camera.
     var camera = new THREE.PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
       0.1,
       10000
     );
+    var raycaster = new THREE.Raycaster();
     // Create a reticle
     var reticle = new THREE.Mesh(
       new THREE.RingBufferGeometry(0.005, 0.01, 15),
@@ -64,29 +64,28 @@ export default class WebVRScene {
     reticle.position.z = -0.5;
     camera.add(reticle);
     scene.add(camera);
+
     // Apply VR stereo rendering to renderer.
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
     var vrDisplay, controls;
-    // Add a repeating grid as a skybox.
-    var boxWidth = 1000;
-    // Create 3D objects.
+
+    // Create cube
     var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
     var material = new THREE.MeshNormalMaterial();
     var cube = new THREE.Mesh(geometry, material);
-    var model = new LoadModel(scene);
-    var player = new Player(camera, scene, renderer);
-    // Position cube
     cube.position.z = -5;
-    // Add cube mesh to your three.js scene
     scene.add(cube);
+
+    // Request animation frame loop function
+    var lastRender = 0;
     // The polyfill provides this in the event this browser
     // does not support WebVR 1.1
     // If we have a native display, or we have a CardboardVRDisplay
     // from the polyfill, use it
     // Otherwise, we're on a desktop environment with no native
     // displays, so provide controls for a monoscopic desktop view
-    navigator.getVRDisplays().then(function(vrDisplays) {  
+    navigator.getVRDisplays().then(function(vrDisplays) {
       if (vrDisplays.length) {
         vrDisplay = vrDisplays[0];
         // Apply VR headset positional data to camera.
@@ -104,8 +103,90 @@ export default class WebVRScene {
         requestAnimationFrame(animate);
       }
     });
-    // Request animation frame loop function
-    var lastRender = 0;
+
+    // Resize the WebGL canvas when we resize and also when we change modes.
+    window.addEventListener("resize", onResize);
+    window.addEventListener("vrdisplaypresentchange", onVRDisplayPresentChange);
+    window.addEventListener("vrdisplayconnect", onVRDisplayConnect);
+    /// Button click handlers.
+    document
+      .querySelector("button#fullscreen")
+      .addEventListener("click", function() {
+        enterFullscreen(renderer.domElement);
+      });
+    document.querySelector("button#vr").addEventListener("click", function() {
+      vrDisplay.requestPresent([{ source: renderer.domElement }]);
+    });
+    // Mouse Events
+    var bodyElement = document.querySelector("Body");
+    bodyElement.addEventListener("click", () => {
+      console.log("click");
+    });
+    // Gamepad events
+    var gamepad = null;
+    var gamepadIndex = 0;
+    window.addEventListener("gamepadconnected", function(e) {
+      console.log(
+        "Gamepad connected at index %d: %s. %d buttons, %d axes.",
+        e.gamepad.index,
+        e.gamepad.id,
+        e.gamepad.buttons.length,
+        e.gamepad.axes.length
+      );
+      gamepad = e.gamepad;
+      if (gamepad) {
+        if (gamepad.mapping === "standard") {
+          console.log("Standard Gamepad");
+        } else if (
+          gamepad.pose &&
+          gamepad.pose.hasOrientation &&
+          gamepad.pose.hasPosition
+        ) {
+          console.log("6DOF: Pointing and position");
+        } else if (gamepad.pose && gamepad.pose.hasOrientation) {
+          console.log("3DOF: Pointing only");
+        } else {
+          console.log("0DOF Clicker, or other");
+        }
+      }
+    });
+    window.addEventListener("gamepaddisconnected", function(e) {
+      console.log(
+        "Gamepad disconnected from index %d: %s",
+        e.gamepad.index,
+        e.gamepad.id
+      );
+    });
+
+    // Start scene
+    var model = new LoadModel(scene);
+    var player = new Player(camera, scene, renderer);
+
+    if (process.env.NODE_ENV == "development") {
+      // RenderStats
+      var rendererStats = new RendererStats();
+      rendererStats.domElement.style.position = "absolute";
+      rendererStats.domElement.style.left = "0px";
+      rendererStats.domElement.style.bottom = "0px";
+      document.body.appendChild(rendererStats.domElement);
+      // Stats
+      var stats = new Stats();
+      stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
+      document.body.appendChild(stats.dom);
+      // Three JS  Inspector
+      window.scene = scene;
+      window.THREE = THREE;
+    }
+
+    var interval;
+    if (!("ongamepadconnected" in window)) {
+      // No gamepad events available, poll instead.
+      interval = setInterval(pollGamepads, 500);
+      console.log("no gamepad events available");
+    }
+
+    var submit = false;
+
     function onResize() {
       // The delay ensures the browser has a chance to layout
       // the page and update the clientWidth/clientHeight.
@@ -135,53 +216,6 @@ export default class WebVRScene {
         e.display || (e.detail && e.detail.display)
       );
     }
-    // Resize the WebGL canvas when we resize and also when we change modes.
-    window.addEventListener("resize", onResize);
-    window.addEventListener("vrdisplaypresentchange", onVRDisplayPresentChange);
-    window.addEventListener("vrdisplayconnect", onVRDisplayConnect);
-    /// Button click handlers.
-    document
-      .querySelector("button#fullscreen")
-      .addEventListener("click", function() {
-        enterFullscreen(renderer.domElement);
-      });
-    document.querySelector("button#vr").addEventListener("click", function() {
-      vrDisplay.requestPresent([{ source: renderer.domElement }]);
-    });
-    // Mouse Events
-    var bodyElement = document.querySelector("Body");
-    bodyElement.addEventListener("click", ()=>{
-      console.log("click");
-    });
-    // Gamepad events
-    var gamepad = null;
-    var gamepadIndex = 0;
-    window.addEventListener("gamepadconnected", function(e) {
-      console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
-        e.gamepad.index, e.gamepad.id,
-        e.gamepad.buttons.length, e.gamepad.axes.length);
-        gamepad = e.gamepad;
-        if(gamepad){
-          if (gamepad.mapping === 'standard'){
-            console.log('Standard Gamepad');
-          }
-          else if (gamepad.pose && gamepad.pose.hasOrientation && gamepad.pose.hasPosition){
-            console.log('6DOF: Pointing and position');
-          }
-          else if (gamepad.pose && gamepad.pose.hasOrientation){
-            console.log('3DOF: Pointing only');
-          }
-          else{
-            console.log('0DOF Clicker, or other');
-          }
-        }
-    });
-    
-    window.addEventListener("gamepaddisconnected", function(e) {
-      console.log("Gamepad disconnected from index %d: %s",
-        e.gamepad.index, e.gamepad.id);
-    });
-  
     function enterFullscreen(el) {
       if (el.requestFullscreen) {
         el.requestFullscreen();
@@ -193,38 +227,27 @@ export default class WebVRScene {
         el.msRequestFullscreen();
       }
     }
-    
-    if (process.env.NODE_ENV == 'development') {
-      // RenderStats
-      var rendererStats = new RendererStats();
-      rendererStats.domElement.style.position	= 'absolute'
-      rendererStats.domElement.style.left	= '0px'
-      rendererStats.domElement.style.bottom	= '0px'
-      document.body.appendChild( rendererStats.domElement )
-      // Stats
-      var stats = new Stats();
-      stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-      document.body.appendChild( stats.dom );
-      // Three JS  Inspector
-      window.scene = scene;
-      window.THREE = THREE;
-    }
-
-    var interval;
-
-    if (!('ongamepadconnected' in window)) {
-      // No gamepad events available, poll instead.
-      interval = setInterval(pollGamepads, 500);
-      console.log("no gamepad events available");
-    }
 
     function pollGamepads() {
-      var gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
+      var gamepads = navigator.getGamepads
+        ? navigator.getGamepads()
+        : navigator.webkitGetGamepads
+        ? navigator.webkitGetGamepads
+        : [];
       for (var i = 0; i < gamepads.length; i++) {
         var gp = gamepads[i];
         if (gp) {
-          console.log("Gamepad connected at index " + gp.index + ": " + gp.id +
-          ". It has " + gp.buttons.length + " buttons and " + gp.axes.length + " axes.");
+          console.log(
+            "Gamepad connected at index " +
+              gp.index +
+              ": " +
+              gp.id +
+              ". It has " +
+              gp.buttons.length +
+              " buttons and " +
+              gp.axes.length +
+              " axes."
+          );
           // gameLoop();
           clearInterval(interval);
         }
@@ -232,8 +255,8 @@ export default class WebVRScene {
     }
 
     function animate(timestamp) {
-      
-      if(process.env.NODE_ENV == 'development'){
+      // Development helpers
+      if (process.env.NODE_ENV == "development") {
         stats.begin();
       }
       var delta = Math.min(timestamp - lastRender, 500);
@@ -247,81 +270,99 @@ export default class WebVRScene {
       player.update();
       var gamepads = navigator.getGamepads();
       // Gamepad
-      if(gamepads){
+      if (gamepads) {
         gamepad = gamepads[gamepadIndex];
-        for(var i = 0; i < gamepads.length; ++i) {
+        for (var i = 0; i < gamepads.length; ++i) {
           var gp = gamepads[i];
-          if(gp){
+          if (gp) {
             var info = "";
-            info = 'Gamepad ' + gp.index + ' (' + gp.id + ')'
-                     + 'Associated with VR Display ID: ' + gp.displayId + " ";
-              if(gp.hapticActuators){
-                info += 'Available haptic actuators: ' + gp.hapticActuators.length;
-              }
-              if(gp.pose){
-                info += 'Gamepad associated with which hand: ' + gp.hand;
-                info += 'Gamepad can return position info: ' + gp.pose.hasPosition
-                info += 'Gamepad can return orientation info: ' + gp.pose.hasOrientation;
-              }
-              if(gp.buttons){
-                for(var j = 0; j < gp.buttons.length; ++j) {
-                  var val = gp.buttons[i];
-                  var pressed = val == 1.0;
-                  if (typeof(val) == "object") {
-                    pressed = val.pressed;
-                    val = val.value;
-                  }
-                  info += "Button " + j + ":" + pressed + " ";
+            info =
+              "Gamepad " +
+              gp.index +
+              " (" +
+              gp.id +
+              ")" +
+              "Associated with VR Display ID: " +
+              gp.displayId +
+              " ";
+            if (gp.hapticActuators) {
+              info +=
+                "Available haptic actuators: " + gp.hapticActuators.length;
+            }
+            if (gp.pose) {
+              info += "Gamepad associated with which hand: " + gp.hand;
+              info +=
+                "Gamepad can return position info: " + gp.pose.hasPosition;
+              info +=
+                "Gamepad can return orientation info: " +
+                gp.pose.hasOrientation;
+            }
+            if (gp.buttons) {
+              for (var j = 0; j < gp.buttons.length; ++j) {
+                var val = gp.buttons[i];
+                var pressed = val == 1.0;
+                if (typeof val == "object") {
+                  pressed = val.pressed;
+                  val = val.value;
                 }
-              }else{
-                info += "No buttons. "
+                submit = pressed;
+                info += "Button " + j + ":" + pressed + " ";
               }
-              if(gp.axes){
-                for (i = 0; i < gp.axes.length; i++) {
-                  if(gp.axes[i]){
-                    var a = axes[i];
-                    info += " " + i + ": " + controller.axes[i].toFixed(4);
-                  }
+            } else {
+              info += "No buttons. ";
+            }
+            if (gp.axes) {
+              for (i = 0; i < gp.axes.length; i++) {
+                if (gp.axes[i]) {
+                  var a = axes[i];
+                  info += " " + i + ": " + controller.axes[i].toFixed(4);
                 }
-              }else{
-                info += "No axes. ";
               }
-              }
-            console.log(info);
+            } else {
+              info += "No axes. ";
+            }
           }
+          // console.log(info);
         }
-      // if(gamepad){
-      //   if(gamepad.connected){
-      //     if(navigator.getVRDisplays && navigator.getGamepads){
-      //       console.log('WebVR API and Gamepad API supported.');
-      //       console.log(gamepads.length + ' controllers');
-      //     } else {
-      //       console.log('WebVR API and/or Gamepad API not supported by this browser.');
-      //     }
-      //   }else{
-      //     // Gamepad found but not connected.
-      //   }
-      // }else{
-      //   // Gamepad not found
-      // }
-      if(model.flipObj){
-        if(player.facingForward){
-          model.flipObj.rotation.set(0,0,0);
+      }
+
+      // Raycast
+      var wpVector = new THREE.Vector3();
+      camera.getWorldPosition(wpVector);
+      var wdVector = new THREE.Vector3();
+      camera.getWorldDirection(wdVector);
+      raycaster.set(wpVector, wdVector);
+      if(model.navmesh){
+        var intersects = raycaster.intersectObject(model.navmesh);
+        if(intersects.length > 0){
+          console.log(intersects);
+          var hit = intersects[0].point;
+          reticle.position.set(hit.x, hit.y +1, hit.z);
         }else{
-            model.flipObj.rotation.set(0,Math.PI,0);
+          
+        }
+      }
+
+      // Flip side model
+      if (model.flipObj) {
+        if (player.facingForward) {
+          model.flipObj.rotation.set(0, 0, 0);
+        } else {
+          model.flipObj.rotation.set(0, Math.PI, 0);
         }
       }
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {
-          vrDisplay.requestAnimationFrame(animate);
-        } else {
-            requestAnimationFrame(animate);
-        }
-        if (process.env.NODE_ENV === "development") {
-          rendererStats.update(renderer);
-          stats.end();
-        }
+        vrDisplay.requestAnimationFrame(animate);
+      } else {
+        requestAnimationFrame(animate);
       }
+      // Development helpers
+      if (process.env.NODE_ENV === "development") {
+        rendererStats.update(renderer);
+        stats.end();
+      }
+    }
   }
 }

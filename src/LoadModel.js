@@ -34,7 +34,7 @@ export default class LoadModel {
         sideTex.flipY = false;
         var centerMat = new THREE.MeshBasicMaterial({map: centerTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})          
         var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
-
+        this.navmesh = null;
         this.flipObj = new THREE.Object3D();
         // Load a glTF resource
         var loader = new GLTFLoader();
@@ -54,6 +54,11 @@ export default class LoadModel {
                                 break;
                             case 'center':
                                 child.material = sideMat;
+                                gltf.scene.remove(child);
+                                break;
+                            case 'navmesh':
+                                this.navmesh = child;
+                                child.material = centerMat;
                                 break;
                         }
                     });
@@ -64,13 +69,10 @@ export default class LoadModel {
                     gltf.scenes; // Array<THREE.Scene>
                     gltf.cameras; // Array<THREE.Camera>
                     gltf.asset; // Object
-
             },
             // called while loading is progressing
             function ( xhr ) {
-
                 console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-
             },
             // called when loading has errors
             function ( error ) {
@@ -78,5 +80,4 @@ export default class LoadModel {
             }
         );
     }
-    
 }
