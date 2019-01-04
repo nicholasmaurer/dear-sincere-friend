@@ -4,8 +4,8 @@ import VRControls from "three-vrcontrols-module";
 import VREffect from "three-vreffect-module";
 import RendererStats from "@xailabs/three-renderer-stats";
 import Stats from "stats-js";
-var OrbitControls = require("three-orbit-controls")(THREE);
 import GLTFLoader from 'three-gltf-loader';
+var PointerLockControls = require('three-pointerlock');
 
 const testImg = require('./textures/test.png');
 const centerImg = require('./textures/center.jpg');
@@ -66,8 +66,12 @@ export default class WebVRScene {
       0.1,
       10000
     );
-    scene.add(camera);
-
+    // Add camera to a group so the camera can be moved
+    var camHeight = 10
+    var user = new THREE.Group();
+    user.add(camera);
+    scene.add(user);
+    user.position.setY(camHeight)
     // Apply VR stereo rendering to renderer.
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -82,6 +86,7 @@ export default class WebVRScene {
     // from the polyfill, use it
     // Otherwise, we're on a desktop environment with no native
     // displays, so provide controls for a monoscopic desktop view
+    var isVR = false;
     navigator.getVRDisplays().then(function(vrDisplays) {
       if (vrDisplays.length) {
         vrDisplay = vrDisplays[0];
@@ -89,13 +94,13 @@ export default class WebVRScene {
         controls = new VRControls(camera);
         // Kick off the render loop.
         vrDisplay.requestAnimationFrame(animate);
+        isVR = true;
       } else {
         // Add a button for full screen and vr
-        controls = new OrbitControls(camera);
-        controls.target.set(0, 0, -1);
+        controls = new PointerLockControls(camera);
         // Disable the "Enter VR" button
-        // var enterVRButton = document.querySelector('#vr');
-        // enterVRButton.disabled = true;
+        var enterVRButton = document.querySelector('#vr');
+        enterVRButton.disabled = true;
         // Kick off the render loop.
         requestAnimationFrame(animate);
       }
@@ -224,7 +229,7 @@ export default class WebVRScene {
                             break;
                     }
                 });
-                gltf.scene.position.setY(-10);
+                // gltf.scene.position.setY(camHeight * -1);
                 scene.add(gltf.scene);
                 gltf.animations; // Array<THREE.AnimationClip>
                 gltf.scene; // THREE.Scene
@@ -243,22 +248,25 @@ export default class WebVRScene {
     );
     // Create cube to use as teleport marker
     var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    var material = new THREE.MeshNormalMaterial();
-    var cube = new THREE.Mesh(geometry, material);
+    var normalMat = new THREE.MeshNormalMaterial();
+    var cube = new THREE.Mesh(geometry, normalMat);
     cube.visible = false;
     scene.add(cube);
-
+    // Spacebar event for non vr input
     document.body.onkeyup = function(e){
         if(e.keyCode == 32){
             move();
         }
     }
-
+    // Clock to get delta time for PointerLock
+    var clock = new THREE.Clock();
 
     function move(){
-        console.log("spacebar");
+      var cubePos = new THREE.Vector3();
+      cube.getWorldPosition(cubePos);
+      user.position.set(cubePos.x, cubePos.y + camHeight, cubePos.z);
+      console.log(user.children);
     }
-
     function onResize() {
       // The delay ensures the browser has a chance to layout
       // the page and update the clientWidth/clientHeight.
@@ -299,7 +307,6 @@ export default class WebVRScene {
         el.msRequestFullscreen();
       }
     }
-
     function pollGamepads() {
       var gamepads = navigator.getGamepads
         ? navigator.getGamepads()
@@ -350,19 +357,18 @@ export default class WebVRScene {
             if (gp.axes) {
               for (i = 0; i < gp.axes.length; i++) {
                 if (gp.axes[i]) {
-                  var a = axes[i];
-                  info += " " + i + ": " + controller.axes[i].toFixed(4);
+                  var a = gp.axes[i];
+                  info += " " + i + ": " + gp.axes[i].toFixed(4);
                 }
               }
             } else {
               info += "No axes. ";
             }
           }
-          // console.log(info);
+          console.log(info);
         }
       }
     }
-
     function animate(timestamp) {
       // Stats
       if (process.env.NODE_ENV == "development") {
@@ -370,10 +376,76 @@ export default class WebVRScene {
       }
       lastRender = timestamp;
       // Update VR headset position and apply to camera.
-      controls.update();
+      if(isVR){
+        controls.update();
+      }else{
+        var delta = clock.getDelta();
+        controls.update(delta);
+      }
       // Render the scene.
       effect.render(scene, camera);
-      
+      // Gamepad 
+      var submit = false;
+      var gamepads = navigator.getGamepads
+        ? navigator.getGamepads()
+        : navigator.webkitGetGamepads
+        ? navigator.webkitGetGamepads
+        : [];
+      if (gamepads) {
+        gamepad = gamepads[gamepadIndex];
+        for (var i = 0; i < gamepads.length; ++i) {
+          var gp = gamepads[i];
+          if (gp) {
+            var info = "";
+            info =
+              "Gamepad " +
+              gp.index +
+              " (" +
+              gp.id +
+              ")" +
+              "Associated with VR Display ID: " +
+              gp.displayId +
+              " ";
+            if (gp.hapticActuators) {
+              info +=
+                "Available haptic actuators: " + gp.hapticActuators.length;
+            }
+            if (gp.pose) {
+              info += "Gamepad associated with which hand: " + gp.hand;
+              info +=
+                "Gamepad can return position info: " + gp.pose.hasPosition;
+              info +=
+                "Gamepad can return orientation info: " +
+                gp.pose.hasOrientation;
+            }
+            if (gp.buttons) {
+              for (var j = 0; j < gp.buttons.length; ++j) {
+                var val = gp.buttons[i];
+                var pressed = val == 1.0;
+                if (typeof val == "object") {
+                  pressed = val.pressed;
+                  val = val.value;
+                }
+                submit = pressed;
+                info += "Button " + j + ":" + pressed + " ";
+              }
+            } else {
+              info += "No buttons. ";
+            }
+            if (gp.axes) {
+              for (i = 0; i < gp.axes.length; i++) {
+                if (gp.axes[i]) {
+                  var a = gp.axes[i];
+                  info += " " + i + ": " + gp.axes[i].toFixed(4);
+                }
+              }
+            } else {
+              info += "No axes. ";
+            }
+            // console.log(info);
+          }
+        }
+      }
       // Raycast onto navmesh and move cube
       var wpVector = new THREE.Vector3();
       camera.getWorldPosition(wpVector);
@@ -389,6 +461,9 @@ export default class WebVRScene {
         }else{
             cube.visible = false;
         }
+      }
+      if(submit){
+        move();
       }
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
