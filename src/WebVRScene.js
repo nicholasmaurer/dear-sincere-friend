@@ -55,27 +55,12 @@ export default class WebVRScene {
       0.1,
       10000
     );
-    var raycaster = new THREE.Raycaster();
-    // Create a reticle
-    var reticle = new THREE.Mesh(
-      new THREE.RingBufferGeometry(0.005, 0.01, 15),
-      new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    reticle.position.z = -0.5;
-    camera.add(reticle);
     scene.add(camera);
 
     // Apply VR stereo rendering to renderer.
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
     var vrDisplay, controls;
-
-    // Create cube
-    var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    var material = new THREE.MeshNormalMaterial();
-    var cube = new THREE.Mesh(geometry, material);
-    cube.position.z = -5;
-    scene.add(cube);
 
     // Request animation frame loop function
     var lastRender = 0;
@@ -159,9 +144,9 @@ export default class WebVRScene {
     });
 
     // Start scene
-    var model = new LoadModel(scene);
-    var player = new Player(camera, scene, renderer);
-
+    this.model = new LoadModel(scene);
+    var player = new Player(camera, scene, renderer, this);
+    
     if (process.env.NODE_ENV == "development") {
       // RenderStats
       var rendererStats = new RendererStats();
@@ -259,15 +244,11 @@ export default class WebVRScene {
       if (process.env.NODE_ENV == "development") {
         stats.begin();
       }
-      var delta = Math.min(timestamp - lastRender, 500);
       lastRender = timestamp;
-      // Apply rotation to cube mesh
-      cube.rotation.y += delta * 0.0002;
       // Update VR headset position and apply to camera.
       controls.update();
       // Render the scene.
       effect.render(scene, camera);
-      player.update();
       var gamepads = navigator.getGamepads();
       // Gamepad
       if (gamepads) {
@@ -325,32 +306,7 @@ export default class WebVRScene {
           // console.log(info);
         }
       }
-
-      // Raycast
-      var wpVector = new THREE.Vector3();
-      camera.getWorldPosition(wpVector);
-      var wdVector = new THREE.Vector3();
-      camera.getWorldDirection(wdVector);
-      raycaster.set(wpVector, wdVector);
-      if(model.navmesh){
-        var intersects = raycaster.intersectObject(model.navmesh);
-        if(intersects.length > 0){
-          console.log(intersects);
-          var hit = intersects[0].point;
-          reticle.position.set(hit.x, hit.y +1, hit.z);
-        }else{
-          
-        }
-      }
-
-      // Flip side model
-      if (model.flipObj) {
-        if (player.facingForward) {
-          model.flipObj.rotation.set(0, 0, 0);
-        } else {
-          model.flipObj.rotation.set(0, Math.PI, 0);
-        }
-      }
+      
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {

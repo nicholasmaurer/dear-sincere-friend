@@ -22,6 +22,8 @@ export default class LoadModel {
         const cubeTex = new THREE.CubeTextureLoader().load(cubeImgs);
         cubeTex.format = THREE.RGBFormat;
         scene.background = 0x000000;
+        var fogColor = 0xffffff;
+        scene.fog = new THREE.Fog(fogColor, 150, 500);
         // Load textures
         var textureLoader = new THREE.TextureLoader();
         var testTex = textureLoader.load(testImg)
@@ -35,7 +37,6 @@ export default class LoadModel {
         var centerMat = new THREE.MeshBasicMaterial({map: centerTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})          
         var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
         this.navmesh = null;
-        this.flipObj = new THREE.Object3D();
         // Load a glTF resource
         var loader = new GLTFLoader();
         loader.load(
@@ -43,22 +44,23 @@ export default class LoadModel {
             `./assets/duveen_gallery.glb`,
             // called when the resource is loaded   
                 ( gltf ) => {
-                    gltf.scene.add(this.flipObj);
+                    console.log(gltf);
                     gltf.scene.children.forEach(child => {
                         console.log(child.name)
                         child.material = testMat;
                         switch (child.name) {
                             case 'side':
-                                child.material = centerMat;
-                                this.flipObj.add(child);
+                                child.material = sideMat;
+                                break;
+                            case 'side001':
+                                child.material = sideMat;
                                 break;
                             case 'center':
-                                child.material = sideMat;
-                                gltf.scene.remove(child);
+                                child.material = centerMat;
                                 break;
                             case 'navmesh':
                                 this.navmesh = child;
-                                child.material = centerMat;
+                                child.renderOrder = -1;
                                 break;
                         }
                     });
