@@ -2,11 +2,22 @@ var THREE = require("three");
 import WebVRPolyfill from "webvr-polyfill";
 import VRControls from "three-vrcontrols-module";
 import VREffect from "three-vreffect-module";
-import LoadModel from "./LoadModel";
-import Player from "./Player";
 import RendererStats from "@xailabs/three-renderer-stats";
 import Stats from "stats-js";
 var OrbitControls = require("three-orbit-controls")(THREE);
+import GLTFLoader from 'three-gltf-loader';
+
+const testImg = require('./textures/test.png');
+const centerImg = require('./textures/center.jpg');
+const sideImg = require('./textures/side.jpg');
+const cubeImgs = [
+    require('./textures/cubemap/px.png'),
+    require('./textures/cubemap/nx.png'),
+    require('./textures/cubemap/py.png'),
+    require('./textures/cubemap/ny.png'),
+    require('./textures/cubemap/pz.png'),
+    require('./textures/cubemap/nz.png')
+];
 
 export default class WebVRScene {
   constructor() {
@@ -61,7 +72,8 @@ export default class WebVRScene {
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
     var vrDisplay, controls;
-
+    // Raycaster to move teleport marker
+    var raycaster = new THREE.Raycaster();
     // Request animation frame loop function
     var lastRender = 0;
     // The polyfill provides this in the event this browser
@@ -143,9 +155,7 @@ export default class WebVRScene {
       );
     });
 
-    // Start scene
-    this.model = new LoadModel(scene);
-    var player = new Player(camera, scene, renderer, this);
+
     
     if (process.env.NODE_ENV == "development") {
       // RenderStats
@@ -163,14 +173,91 @@ export default class WebVRScene {
       window.THREE = THREE;
     }
 
-    var interval;
     if (!("ongamepadconnected" in window)) {
       // No gamepad events available, poll instead.
-      interval = setInterval(pollGamepads, 500);
+      // interval = setInterval(pollGamepads, 500);
       console.log("no gamepad events available");
     }
 
-    var submit = false;
+    const cubeTex = new THREE.CubeTextureLoader().load(cubeImgs);
+    cubeTex.format = THREE.RGBFormat;
+    scene.background = 0x000000;
+    var fogColor = 0xffffff;
+    scene.fog = new THREE.Fog(fogColor, 150, 500);
+    // Load textures
+    var textureLoader = new THREE.TextureLoader();
+    var testTex = textureLoader.load(testImg)
+    var testMat = new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true}); 
+    var centerTex = textureLoader.load(centerImg);
+    centerTex.flipY = false;
+    centerTex.encoding = THREE.sRGBEncoding;
+    var sideTex = textureLoader.load(sideImg);
+    sideTex.encoding = THREE.sRGBEncoding;
+    sideTex.flipY = false;
+    var centerMat = new THREE.MeshBasicMaterial({map: centerTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})          
+    var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
+    var navmesh = null;
+    // Load a glTF resource
+    var loader = new GLTFLoader();
+    loader.load(
+        // resource URL
+        `./assets/duveen_gallery.glb`,
+        // called when the resource is loaded   
+            ( gltf ) => {
+                console.log(gltf);
+                gltf.scene.children.forEach(child => {
+                    console.log(child.name)
+                    child.material = testMat;
+                    switch (child.name) {
+                        case 'side':
+                            child.material = sideMat;
+                            break;
+                        case 'side001':
+                            child.material = sideMat;
+                            break;
+                        case 'center':
+                            child.material = centerMat;
+                            break;
+                        case 'navmesh':
+                            navmesh = child;
+                            child.renderOrder = -1;
+                            break;
+                    }
+                });
+                gltf.scene.position.setY(-10);
+                scene.add(gltf.scene);
+                gltf.animations; // Array<THREE.AnimationClip>
+                gltf.scene; // THREE.Scene
+                gltf.scenes; // Array<THREE.Scene>
+                gltf.cameras; // Array<THREE.Camera>
+                gltf.asset; // Object
+        },
+        // called while loading is progressing
+        function ( xhr ) {
+            console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+        },
+        // called when loading has errors
+        function ( error ) {
+            console.log(error);
+        }
+    );
+    // Create cube to use as teleport marker
+    var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    var material = new THREE.MeshNormalMaterial();
+    var cube = new THREE.Mesh(geometry, material);
+    cube.visible = false;
+    scene.add(cube);
+
+    document.body.onkeyup = function(e){
+        if(e.keyCode == 32){
+            move();
+        }
+    }
+
+
+    function move(){
+        console.log("spacebar");
+    }
 
     function onResize() {
       // The delay ensures the browser has a chance to layout
@@ -219,38 +306,6 @@ export default class WebVRScene {
         : navigator.webkitGetGamepads
         ? navigator.webkitGetGamepads
         : [];
-      for (var i = 0; i < gamepads.length; i++) {
-        var gp = gamepads[i];
-        if (gp) {
-          console.log(
-            "Gamepad connected at index " +
-              gp.index +
-              ": " +
-              gp.id +
-              ". It has " +
-              gp.buttons.length +
-              " buttons and " +
-              gp.axes.length +
-              " axes."
-          );
-          // gameLoop();
-          clearInterval(interval);
-        }
-      }
-    }
-
-    function animate(timestamp) {
-      // Development helpers
-      if (process.env.NODE_ENV == "development") {
-        stats.begin();
-      }
-      lastRender = timestamp;
-      // Update VR headset position and apply to camera.
-      controls.update();
-      // Render the scene.
-      effect.render(scene, camera);
-      var gamepads = navigator.getGamepads();
-      // Gamepad
       if (gamepads) {
         gamepad = gamepads[gamepadIndex];
         for (var i = 0; i < gamepads.length; ++i) {
@@ -306,7 +361,35 @@ export default class WebVRScene {
           // console.log(info);
         }
       }
+    }
+
+    function animate(timestamp) {
+      // Stats
+      if (process.env.NODE_ENV == "development") {
+        stats.begin();
+      }
+      lastRender = timestamp;
+      // Update VR headset position and apply to camera.
+      controls.update();
+      // Render the scene.
+      effect.render(scene, camera);
       
+      // Raycast onto navmesh and move cube
+      var wpVector = new THREE.Vector3();
+      camera.getWorldPosition(wpVector);
+      var wdVector = new THREE.Vector3();
+      camera.getWorldDirection(wdVector);
+      raycaster.set(wpVector, wdVector);
+      if(navmesh){
+        var intersects = raycaster.intersectObject(navmesh);
+        if(intersects.length > 0){
+          var hit = intersects[0].point;
+          cube.position.set(hit.x, hit.y +1, hit.z);
+          cube.visible = true;
+        }else{
+            cube.visible = false;
+        }
+      }
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {
@@ -314,7 +397,7 @@ export default class WebVRScene {
       } else {
         requestAnimationFrame(animate);
       }
-      // Development helpers
+      // Stats
       if (process.env.NODE_ENV === "development") {
         rendererStats.update(renderer);
         stats.end();
