@@ -6,6 +6,7 @@ import RendererStats from "@xailabs/three-renderer-stats";
 import Stats from "stats-js";
 import GLTFLoader from 'three-gltf-loader';
 var PointerLockControls = require('three-pointerlock');
+var OrbitControls = require('three-orbit-controls')(THREE);
 
 const testImg = require('./textures/test.png');
 const centerImg = require('./textures/center.jpg');
@@ -70,8 +71,14 @@ export default class WebVRScene {
     var camHeight = 10
     var user = new THREE.Group();
     user.add(camera);
+    var sphereGeo = new THREE.SphereBufferGeometry( 1, 32, 32 );
+    var sphereMat = new THREE.MeshBasicMaterial( {color: 0x000000, side: THREE.BackSide, transparent: true, opacity: 0} );
+    var sphere = new THREE.Mesh( sphereGeo, sphereMat  );
+    var fade = 0;
+    var fadeIn = false;
+    var fadeOut = false;
+    user.add( sphere );
     scene.add(user);
-    user.position.setY(camHeight)
     // Apply VR stereo rendering to renderer.
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -89,19 +96,22 @@ export default class WebVRScene {
     var isVR = false;
     navigator.getVRDisplays().then(function(vrDisplays) {
       if (vrDisplays.length) {
+        user.position.setY(camHeight);
         vrDisplay = vrDisplays[0];
         // Apply VR headset positional data to camera.
         controls = new VRControls(camera);
         // Kick off the render loop.
-        vrDisplay.requestAnimationFrame(animate);
         isVR = true;
+        vrDisplay.requestAnimationFrame(animate);
       } else {
         // Add a button for full screen and vr
-        controls = new PointerLockControls(camera);
+        controls = new OrbitControls(user);
+        controls.target = new THREE.Vector3(0,0,-1);
         // Disable the "Enter VR" button
         var enterVRButton = document.querySelector('#vr');
         enterVRButton.disabled = true;
         // Kick off the render loop.
+        isVR = false;
         requestAnimationFrame(animate);
       }
     });
@@ -247,9 +257,9 @@ export default class WebVRScene {
         }
     );
     // Create cube to use as teleport marker
-    var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    var planeGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
     var normalMat = new THREE.MeshNormalMaterial();
-    var cube = new THREE.Mesh(geometry, normalMat);
+    var cube = new THREE.Mesh(planeGeo, normalMat);
     cube.visible = false;
     scene.add(cube);
     // Spacebar event for non vr input
@@ -376,12 +386,7 @@ export default class WebVRScene {
       }
       lastRender = timestamp;
       // Update VR headset position and apply to camera.
-      if(isVR){
-        controls.update();
-      }else{
-        var delta = clock.getDelta();
-        controls.update(delta);
-      }
+      controls.update();
       // Render the scene.
       effect.render(scene, camera);
       // Gamepad 
@@ -446,6 +451,29 @@ export default class WebVRScene {
           }
         }
       }
+      var delta = clock.getDelta();
+      var fadeScalar = 1;
+      if(submit){
+        if(fade <= 0){
+          fadeIn = true;
+          fadeOut = false;
+          fade = 0;
+        }
+      }
+      if(fadeIn){
+        fade += delta * fadeScalar;
+      }
+      if(fadeOut){
+        fade -= delta * fadeScalar;
+      }
+      if(fade >= 1){
+        move();
+        fadeIn = false;
+        fadeOut = true;
+      }
+      if(fade >= 0 | fade <=1){
+        sphereMat.opacity = fade;
+      }
       // Raycast onto navmesh and move cube
       var wpVector = new THREE.Vector3();
       camera.getWorldPosition(wpVector);
@@ -456,15 +484,15 @@ export default class WebVRScene {
         var intersects = raycaster.intersectObject(navmesh);
         if(intersects.length > 0){
           var hit = intersects[0].point;
-          cube.position.set(hit.x, hit.y +1, hit.z);
+          if(!fadeIn){
+            cube.position.set(hit.x, hit.y +1, hit.z);
+          }
           cube.visible = true;
         }else{
             cube.visible = false;
         }
       }
-      if(submit){
-        move();
-      }
+      
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {
