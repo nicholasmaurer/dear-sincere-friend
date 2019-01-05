@@ -452,7 +452,7 @@ export default class WebVRScene {
         }
       }
       var delta = clock.getDelta();
-      var fadeScalar = 1;
+      var fadeScalar = 2;
       if(submit){
         if(fade <= 0){
           fadeIn = true;
@@ -461,7 +461,7 @@ export default class WebVRScene {
         }
       }
       if(fadeIn){
-        fade += delta * fadeScalar;
+        fade += delta * fadeScalar; 
       }
       if(fadeOut){
         fade -= delta * fadeScalar;
