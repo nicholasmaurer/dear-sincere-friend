@@ -1,4 +1,7 @@
-console.log("Hello world, this is me, life shoudle be, fun for everyone");
+import Pace from "pace-js";
+// var Pace = require("pace-js");
+
+Pace.start();
 
 function getComponent(){
   return import(/* webpackChunkName: "webVrScene" */ './WebVRScene').then(({default: WebVRScene}) => {

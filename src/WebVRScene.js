@@ -10,6 +10,7 @@ var OrbitControls = require('three-orbit-controls')(THREE);
 
 const testImg = require('./textures/test.png');
 const centerImg = require('./textures/center.jpg');
+const floorImg = require('./textures/floor.jpg');
 const sideImg = require('./textures/side.jpg');
 const cubeImgs = [
     require('./textures/cubemap/px.png'),
@@ -95,6 +96,7 @@ export default class WebVRScene {
     // Otherwise, we're on a desktop environment with no native
     // displays, so provide controls for a monoscopic desktop view
     var isVR = false;
+    var inVR = false;
     navigator.getVRDisplays().then(function(vrDisplays) {
       if (vrDisplays.length) {
         vrDisplay = vrDisplays[0];
@@ -143,7 +145,9 @@ export default class WebVRScene {
     // Mouse Events
     var bodyElement = document.querySelector("Body");
     bodyElement.addEventListener("click", () => {
-      console.log("click");
+      if(inVR){
+        submit = true;
+      }
     });
     // Gamepad events
     var gamepad = null;
@@ -213,15 +217,19 @@ export default class WebVRScene {
     // Load textures
     var textureLoader = new THREE.TextureLoader();
     var testTex = textureLoader.load(testImg)
-    var testMat = new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true}); 
+    var testMat = new THREE.MeshBasicMaterial({color: 0xffffff, visible: false}); 
+    var floorTex = textureLoader.load(floorImg);
+    floorTex.flipY = false;
+    floorTex.encoding = THREE.sRGBEncoding;
     var centerTex = textureLoader.load(centerImg);
     centerTex.flipY = false;
     centerTex.encoding = THREE.sRGBEncoding;
     var sideTex = textureLoader.load(sideImg);
     sideTex.encoding = THREE.sRGBEncoding;
     sideTex.flipY = false;
-    var centerMat = new THREE.MeshBasicMaterial({map: centerTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2})          
+    var centerMat = new THREE.MeshBasicMaterial({map: centerTex})          
     var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
+    var floorMat = new THREE.MeshBasicMaterial({map: floorTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2});
     var navmesh = null;
     // Load a glTF resource
     var loader = new GLTFLoader();
@@ -235,13 +243,16 @@ export default class WebVRScene {
                     console.log(child.name)
                     child.material = testMat;
                     switch (child.name) {
-                        case 'side':
-                            child.material = sideMat;
-                            break;
                         case 'side001':
                             child.material = sideMat;
                             break;
-                        case 'center':
+                        case 'side002':
+                            child.material = sideMat;
+                            break;
+                          case 'floor':
+                            child.material = floorMat;
+                            break;
+                        case 'center001':
                             child.material = centerMat;
                             break;
                         case 'navmesh':
@@ -281,12 +292,13 @@ export default class WebVRScene {
     }
     // Clock to get delta time for PointerLock
     var clock = new THREE.Clock();
+    // Submit flag to check for teleport input
+    var submit = false;
 
     function move(){
       var cubePos = new THREE.Vector3();
       cube.getWorldPosition(cubePos);
       user.position.set(cubePos.x, cubePos.y + camHeight, cubePos.z);
-      console.log(user.children);
     }
     function onResize() {
       // The delay ensures the browser has a chance to layout
@@ -310,6 +322,7 @@ export default class WebVRScene {
       console.log("onVRDisplayPresentChange");
       onResize();
       buttons.hidden = vrDisplay.isPresenting;
+      inVR = vrDisplay.isPresenting;
     }
     function onVRDisplayConnect(e) {
       console.log(
@@ -327,6 +340,24 @@ export default class WebVRScene {
       } else if (el.msRequestFullscreen) {
         el.msRequestFullscreen();
       }
+    }
+    if (document.addEventListener)
+    {
+        document.addEventListener('webkitfullscreenchange', exitHandler, false);
+        document.addEventListener('mozfullscreenchange', exitHandler, false);
+        document.addEventListener('fullscreenchange', exitHandler, false);
+        document.addEventListener('MSFullscreenChange', exitHandler, false);
+    }
+
+    function exitHandler()
+    {
+        if (document.fullscreenElement)
+        {
+          inVR = true;
+        }else{
+          inVR = false;
+        }
+        console.log("exitHandler: ",inVR);
     }
     function pollGamepads() {
       var gamepads = navigator.getGamepads
@@ -403,7 +434,6 @@ export default class WebVRScene {
       // Render the scene.
       effect.render(scene, camera);
       // Gamepad 
-      var submit = false;
       var gamepads = navigator.getGamepads
         ? navigator.getGamepads()
         : navigator.webkitGetGamepads
@@ -505,7 +535,7 @@ export default class WebVRScene {
             cube.visible = false;
         }
       }
-      
+      submit = false;
       // Keep looping; if using a VRDisplay, call its requestAnimationFrame,
       // otherwise call window.requestAnimationFrame.
       if (vrDisplay) {

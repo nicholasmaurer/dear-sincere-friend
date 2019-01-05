@@ -22,13 +22,14 @@
     "three": "^0.98.0",
     "webpack": "^4.26.1",
     "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.1.10",
+    "webpack-dev-server": "^3.1.14",
     "write-file-webpack-plugin": "^4.5.0"
   },
   "dependencies": {
     "@xailabs/three-renderer-stats": "^1.0.4",
     "chai": "^4.2.0",
     "lodash": "^4.17.11",
+    "pace-js": "^1.0.2",
     "stats-js": "^1.0.0",
     "three": "^0.98.0",
     "three-gltf-loader": "^1.99.0",
