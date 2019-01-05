@@ -437,7 +437,7 @@ export default class WebVRScene {
       var gamepads = navigator.getGamepads
         ? navigator.getGamepads()
         : navigator.webkitGetGamepads
-        ? navigator.webkitGetGamepads
+        ? navigator.webkitGetGmepads
         : [];
       if (gamepads) {
         gamepad = gamepads[gamepadIndex];

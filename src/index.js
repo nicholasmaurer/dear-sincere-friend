@@ -1,4 +1,4 @@
-import Pace from "pace-js";
+import Pace from "pace-progressbar";
 // var Pace = require("pace-js");
 
 Pace.start();
