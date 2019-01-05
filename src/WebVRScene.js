@@ -79,6 +79,7 @@ export default class WebVRScene {
     var fadeOut = false;
     user.add( sphere );
     scene.add(user);
+    user.position.setY(camHeight);
     // Apply VR stereo rendering to renderer.
     var effect = new VREffect(renderer);
     effect.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -96,7 +97,6 @@ export default class WebVRScene {
     var isVR = false;
     navigator.getVRDisplays().then(function(vrDisplays) {
       if (vrDisplays.length) {
-        user.position.setY(camHeight);
         vrDisplay = vrDisplays[0];
         // Apply VR headset positional data to camera.
         controls = new VRControls(camera);
@@ -105,8 +105,8 @@ export default class WebVRScene {
         vrDisplay.requestAnimationFrame(animate);
       } else {
         // Add a button for full screen and vr
-        controls = new OrbitControls(user);
-        controls.target = new THREE.Vector3(0,0,-1);
+        // controls = new OrbitControls(user);
+        // controls.target = new THREE.Vector3(0,0,-1);
         // Disable the "Enter VR" button
         var enterVRButton = document.querySelector('#vr');
         enterVRButton.disabled = true;
@@ -114,21 +114,32 @@ export default class WebVRScene {
         isVR = false;
         requestAnimationFrame(animate);
       }
+      // Button click handlers.
+      if(isVR){
+        var buttonElement = document.querySelector("button#vr");
+        buttonElement.style.display = "inline";
+        buttonElement.addEventListener("click", function() {
+          vrDisplay.requestPresent([{ source: renderer.domElement }]);
+        });
+        buttonElement = document.querySelector("button#fullscreen");
+        buttonElement.style.display = "inline";
+        buttonElement.addEventListener("click", function() {
+            enterFullscreen(renderer.domElement);
+        });
+      }else{
+        var buttonElement = document.querySelector("button#fullscreen");
+        buttonElement.style.display = "inline";
+        buttonElement.addEventListener("click", function() {
+            enterFullscreen(renderer.domElement);
+        });
+      }
     });
 
     // Resize the WebGL canvas when we resize and also when we change modes.
     window.addEventListener("resize", onResize);
     window.addEventListener("vrdisplaypresentchange", onVRDisplayPresentChange);
     window.addEventListener("vrdisplayconnect", onVRDisplayConnect);
-    /// Button click handlers.
-    document
-      .querySelector("button#fullscreen")
-      .addEventListener("click", function() {
-        enterFullscreen(renderer.domElement);
-      });
-    document.querySelector("button#vr").addEventListener("click", function() {
-      vrDisplay.requestPresent([{ source: renderer.domElement }]);
-    });
+    
     // Mouse Events
     var bodyElement = document.querySelector("Body");
     bodyElement.addEventListener("click", () => {
@@ -386,7 +397,9 @@ export default class WebVRScene {
       }
       lastRender = timestamp;
       // Update VR headset position and apply to camera.
-      controls.update();
+      if(controls){
+        controls.update();
+      }
       // Render the scene.
       effect.render(scene, camera);
       // Gamepad 
