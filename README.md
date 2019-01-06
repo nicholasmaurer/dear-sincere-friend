@@ -1,7 +1,5 @@
 # dear-sincere-friend
 
-To build this project require node.js and webpack to build. Install node.js then run `npm install webpack`.
-
-To build this project in the project root directory run `npm run build`.
+This project is built with webpack. From the project root run `npm install webpack` to install webpack. Run `npm install` to install the project dependencies. To build the project run `npm run build` and `npm start` to start hosting a local webserver.
 
 www.dearsincerefriend.com
