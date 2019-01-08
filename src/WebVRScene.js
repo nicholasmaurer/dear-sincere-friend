@@ -13,12 +13,12 @@ const centerImg = require('./textures/center.jpg');
 const floorImg = require('./textures/floor.jpg');
 const sideImg = require('./textures/side.jpg');
 const cubeImgs = [
-    require('./textures/cubemap/px.png'),
-    require('./textures/cubemap/nx.png'),
-    require('./textures/cubemap/py.png'),
-    require('./textures/cubemap/ny.png'),
-    require('./textures/cubemap/pz.png'),
-    require('./textures/cubemap/nz.png')
+    require('./textures/cubemap/x+.jpg'),
+    require('./textures/cubemap/x-.jpg'),
+    require('./textures/cubemap/y+.jpg'),
+    require('./textures/cubemap/y-.jpg'),
+    require('./textures/cubemap/z+.jpg'),
+    require('./textures/cubemap/z+.jpg')
 ];
 
 export default class WebVRScene {
@@ -87,6 +87,7 @@ export default class WebVRScene {
     var vrDisplay, controls;
     // Raycaster to move teleport marker
     var raycaster = new THREE.Raycaster();
+    
     // Request animation frame loop function
     var lastRender = 0;
     // The polyfill provides this in the event this browser
@@ -145,6 +146,9 @@ export default class WebVRScene {
     // Mouse Events
     var bodyElement = document.querySelector("Body");
     bodyElement.addEventListener("click", () => {
+      var camPos = new THREE.Vector3();
+      camera.getWorldPosition(camPos);
+      console.log("Camera Positon: ",camPos);
       if(inVR){
         submit = true;
       }
@@ -211,6 +215,7 @@ export default class WebVRScene {
 
     const cubeTex = new THREE.CubeTextureLoader().load(cubeImgs);
     cubeTex.format = THREE.RGBFormat;
+    cubeTex.encoding = THREE.sRGBEncoding;
     scene.background = 0x000000;
     var fogColor = 0xffffff;
     scene.fog = new THREE.Fog(fogColor, 150, 500);
@@ -220,16 +225,16 @@ export default class WebVRScene {
     var testMat = new THREE.MeshBasicMaterial({color: 0xffffff, visible: false}); 
     var floorTex = textureLoader.load(floorImg);
     floorTex.flipY = false;
-    floorTex.encoding = THREE.sRGBEncoding;
+    // floorTex.encoding = THREE.sRGBEncoding;
     var centerTex = textureLoader.load(centerImg);
     centerTex.flipY = false;
-    centerTex.encoding = THREE.sRGBEncoding;
+    // centerTex.encoding = THREE.sRGBEncoding;
     var sideTex = textureLoader.load(sideImg);
-    sideTex.encoding = THREE.sRGBEncoding;
+    // sideTex.encoding = THREE.sRGBEncoding;
     sideTex.flipY = false;
     var centerMat = new THREE.MeshBasicMaterial({map: centerTex})          
     var sideMat = new THREE.MeshBasicMaterial({map: sideTex});
-    var floorMat = new THREE.MeshBasicMaterial({map: floorTex, envMap: cubeTex, combine: THREE.MixOperation,reflectivity: 0.2});
+    var floorMat = new THREE.MeshBasicMaterial({map: floorTex, envMap: cubeTex, combine: THREE.AddOperation,reflectivity: 0.5});
     var navmesh = null;
     // Load a glTF resource
     var loader = new GLTFLoader();
@@ -278,12 +283,14 @@ export default class WebVRScene {
             console.log(error);
         }
     );
-    // Create cube to use as teleport marker
-    var planeGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    var normalMat = new THREE.MeshNormalMaterial();
-    var cube = new THREE.Mesh(planeGeo, normalMat);
-    cube.visible = false;
-    scene.add(cube);
+    // Create mesh to use as teleport marker
+    var ringGeometry = new THREE.RingGeometry( 0.2, 0.5, 32 );
+    var ringMat = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide } );
+    var reticle = new THREE.Mesh( ringGeometry, ringMat );
+    reticle.rotateX(Math.PI * 0.5);
+    reticle.visible = false;
+    scene.add(reticle);
+
     // Spacebar event for non vr input
     document.body.onkeyup = function(e){
         if(e.keyCode == 32){
@@ -297,8 +304,10 @@ export default class WebVRScene {
 
     function move(){
       var cubePos = new THREE.Vector3();
-      cube.getWorldPosition(cubePos);
+      reticle.getWorldPosition(cubePos);
+
       user.position.set(cubePos.x, cubePos.y + camHeight, cubePos.z);
+      console.log("Cube Position: ", cubePos);
     }
     function onResize() {
       // The delay ensures the browser has a chance to layout
@@ -528,11 +537,11 @@ export default class WebVRScene {
         if(intersects.length > 0){
           var hit = intersects[0].point;
           if(!fadeIn){
-            cube.position.set(hit.x, hit.y +1, hit.z);
+            reticle.position.set(hit.x, hit.y +1, hit.z);
           }
-          cube.visible = true;
+          reticle.visible = true;
         }else{
-            cube.visible = false;
+            reticle.visible = false;
         }
       }
       submit = false;

@@ -10,7 +10,7 @@ function getComponent(){
     
   }).catch(error => 'An error occured while loading the component');
 }
-const backgroundImage = require('./textures/cubemap/pz.png');
+const backgroundImage = require('./textures/cubemap/z+.jpg');
 var body = document.querySelector("Body");
 body.setAttribute('background', backgroundImage);
 
