@@ -1,5 +1,13 @@
 # dear-sincere-friend
 
-This project is built with webpack. From the project root run `npm install webpack` to install webpack. Run `npm install` to install the project dependencies. To build the project run `npm run build` and `npm start` to start hosting a local webserver.
+## Building Project
+
+This project is built with webpack, three.js and web vr polyfill.
+
+Run `npm install` to install the project dependencies. 
+
+Run `npm run build` to build the project.
+
+Run `npm start` to start hosting a local webserver.
 
 www.dearsincerefriend.com
