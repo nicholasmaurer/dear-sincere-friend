@@ -28,7 +28,7 @@
   "dependencies": {
     "@xailabs/three-renderer-stats": "^1.0.4",
     "chai": "^4.2.0",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.19",
     "pace-progressbar": "^1.0.8",
     "stats-js": "^1.0.0",
     "three": "^0.98.0",
